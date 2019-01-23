@@ -1,0 +1,6 @@
+# JUCE-specific directories
+Builds
+JuceLibraryCode
+
+# JetBrains IDEs
+.idea
