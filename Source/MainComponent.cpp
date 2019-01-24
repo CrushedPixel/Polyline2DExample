@@ -24,6 +24,12 @@ MainComponent::~MainComponent() {
 	shutdownOpenGL();
 }
 
+static void writeVec2(juce::MemoryOutputStream &out, const crushedpixel::Vec2 &vec) {
+	// write vertices as two consecutive floats
+	out.writeFloat(vec.x);
+	out.writeFloat(vec.y);
+}
+
 void MainComponent::initialise() {
 	// generate VAO
 	GL::glGenVertexArrays(1, &vaoHandle);
@@ -42,12 +48,16 @@ void MainComponent::initialise() {
 	numPoints = (GLsizei) points.size();
 	numVertices = (GLsizei) vertices.size();
 
-	// set buffer data to original points, followed by vertices
-	GL::glBufferData(GL_ARRAY_BUFFER, sizeof(crushedpixel::Vec2) * (points.size() + numVertices),
-	                 nullptr, GL_STATIC_DRAW);
-	GL::glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(crushedpixel::Vec2) * points.size(), points.data());
-	GL::glBufferSubData(GL_ARRAY_BUFFER, sizeof(crushedpixel::Vec2) * points.size(),
-	                    sizeof(crushedpixel::Vec2) * numVertices, vertices.data());
+	// write original points, followed by vertices, to buffer
+	juce::MemoryOutputStream mos;
+	for (auto &vertex : points) {
+		writeVec2(mos, vertex);
+	}
+	for (auto &vertex : vertices) {
+		writeVec2(mos, vertex);
+	}
+
+	GL::glBufferData(GL_ARRAY_BUFFER, mos.getDataSize(), mos.getData(), GL_STATIC_DRAW);
 
 	// generate Shader Program
 	auto vert = GL::glCreateShader(GL_VERTEX_SHADER);
@@ -72,7 +82,7 @@ void MainComponent::initialise() {
 	posInAttribLocation = GL::glGetAttribLocation(programHandle, "posIn");
 	colorUniformLocation = GL::glGetUniformLocation(programHandle, "color");
 
-	// the posIn is filled with tightly packed Vec2s (which are just 2 floats in memory)
+	// tell OpenGL to read the input data as pairs of floats
 	GL::glVertexAttribPointer(posInAttribLocation, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
 	GL::glEnableVertexAttribArray(posInAttribLocation);
 }
